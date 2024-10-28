@@ -25,3 +25,14 @@ def index():
         return render_template('index.html', message=message, file_path=file_path)
     else:
         return render_template('index.html')
+    
+def run_extraction_script(username, password):
+    # "개인정보 추출 신청" 스크립트 실행
+    from scripts.extraction_script import main as first_main
+    try:
+        excel_file = first_main(username, password)
+        message = '개인정보 신청 이력 저장이 완료되었습니다.'
+        return message, excel_file
+    except Exception as e:
+        message = f'오류 발생: {e}'
+        return message, None
