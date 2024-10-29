@@ -59,3 +59,40 @@ def login(driver: webdriver.Chrome, username: str, password: str) -> bool:
         logging.error(f"로그인 중 오류 발생: {e}")
         traceback.print_exc()
         return False
+
+
+def navigate_to_search_page(driver: webdriver.Chrome) -> bool:
+    """
+    검색 페이지로 이동하는 함수
+    """
+    try:
+        # 검색 페이지 URL로 이동
+        driver.get('https://gw.com2us.com/emate_appro/appro_complete_2024_link.nsf/wfmViaView?readform&viewname=view055&vctype=a')
+        # 검색창이 로드될 때까지 대기
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, 'searchtext')))
+        return True
+    except Exception as e:
+        logging.error(f"검색 페이지 이동 중 오류 발생: {e}")
+        traceback.print_exc()
+        return False
+
+
+def search_documents(driver: webdriver.Chrome) -> bool:
+    """
+    '개인정보 추출 신청서' 검색을 수행하는 함수
+    """
+    try:
+        # 검색어 입력
+        search_input = driver.find_element(By.ID, 'searchtext')
+        search_input.clear()
+        search_input.send_keys('개인정보 추출 신청서')
+        
+        # 검색 버튼 클릭
+        search_button = driver.find_element(By.XPATH, '//img[@class="inbtn" and contains(@src, "btn_search_board.gif")]')
+        search_button.click()
+        time.sleep(5)
+        return True
+    except Exception as e:
+        logging.error(f"문서 검색 중 오류 발생: {e}")
+        traceback.print_exc()
+        return False
