@@ -96,3 +96,89 @@ def search_documents(driver: webdriver.Chrome) -> bool:
         logging.error(f"문서 검색 중 오류 발생: {e}")
         traceback.print_exc()
         return False
+
+
+def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelement.WebElement, index: int) -> Optional[Dict]:
+    """
+    개별 게시글의 데이터를 추출하는 함수
+    """
+    try:
+        # 기본 정보 추출
+        tds = post.find_elements(By.TAG_NAME, 'td')
+        
+        # 결재일 추출
+        결재일_text = tds[5].text.strip()
+        년, 월, 일 = 결재일_text.split('-')
+        월 = str(int(월))
+        일 = str(int(일))
+        
+        # 신청자 추출
+        신청자 = tds[4].find_element(By.TAG_NAME, 'span').text.strip()
+
+        # 게시글 상세 페이지 열기
+        driver.execute_script("arguments[0].scrollIntoView();", post)
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(post))
+        post.click()
+
+        # 새 창으로 전환
+        WebDriverWait(driver, 10).until(EC.number_of_windows_to_be(2))
+        driver.switch_to.window(driver.window_handles[-1])
+
+        # 상세 페이지 데이터 추출
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, 'AppLineArea')))
+        
+        # 문서 종류 확인
+        h2_element = driver.find_element(By.CSS_SELECTOR, '#AppLineArea h2')
+        if h2_element.text.strip() != '개인정보 추출 신청서':
+            driver.close()
+            driver.switch_to.window(driver.window_handles[0])
+            return None
+
+        # 상세 정보 추출
+        법인명_elements = driver.find_elements(By.ID, 'titleLabel')
+        법인명 = 법인명_elements[0].text.strip() if 법인명_elements else ''
+
+        문서번호_elements = driver.find_elements(By.XPATH, '//th[contains(text(),"문서번호")]/following-sibling::td[1]')
+        문서번호 = 문서번호_elements[0].text.strip() if 문서번호_elements else ''
+
+        제목_elements = driver.find_elements(By.CSS_SELECTOR, 'td.approval_text')
+        제목 = 제목_elements[0].text.strip().replace(법인명, '').strip() if 제목_elements else ''
+
+        합의담당자_elements = driver.find_elements(By.XPATH, '//th[text()="합의선"]/following::tr[@class="name"][1]/td[@class="td_point"]')
+        합의담당자 = 합의담당자_elements[0].text.strip() if 합의담당자_elements else ''
+
+        # 추출 데이터 구성
+        data = {
+            '결재일': 결재일_text,
+            '년': 년,
+            '월': 월,
+            '일': 일,
+            '주차': '',
+            '법인명': 법인명,
+            '문서번호': 문서번호,
+            '제목': 제목,
+            '업무 유형': '',
+            '추출 위치': '',
+            '담당 부서': '',
+            '신청자': 신청자,
+            '합의 담당자': 합의담당자,
+            '링크': driver.current_url,
+            '진행 구분': ''
+        }
+
+        logging.info(f"게시글 {index}: 데이터 추출 완료")
+        return data
+
+    except Exception as e:
+        logging.error(f"게시글 {index}: 데이터 추출 중 오류 발생: {e}")
+        traceback.print_exc()
+        return None
+    finally:
+        # 창 정리 및 원래 창으로 복귀
+        try:
+            driver.close()
+            driver.switch_to.window(driver.window_handles[0])
+            time.sleep(2)
+        except Exception as e:
+            logging.error(f"창 전환 중 오류 발생: {e}")
+            traceback.print_exc()
