@@ -238,3 +238,51 @@ def save_to_excel(data_list: List[Dict]) -> None:
     except Exception as e:
         logging.error(f"엑셀 저장 중 오류 발생: {e}")
         traceback.print_exc()
+
+
+def main(username: str, password: str) -> Optional[str]:
+    driver = initialize_webdriver()
+
+    try:
+        # 로그인 및 페이지 이동
+        if not login(driver, username, password):
+            driver.quit()
+            return None
+
+        if not navigate_to_search_page(driver):
+            driver.quit()
+            return None
+
+        if not search_documents(driver):
+            driver.quit()
+            return None
+
+        # 게시글 데이터 추출
+        data_list = []
+        posts = driver.find_elements(By.XPATH, '//tr[contains(@class, "dhx_skyblue")]')
+        num_posts_to_crawl = min(len(posts), MAX_POSTS)
+
+        for i in range(num_posts_to_crawl):
+            posts = driver.find_elements(By.CSS_SELECTOR, 'tr[class*="dhx_skyblue"]')
+            if i >= len(posts):
+                logging.warning(f"게시글 수가 예상보다 적습니다. 현재 인덱스: {i}, 게시글 수: {len(posts)}")
+                break
+                
+            data = extract_post_data(driver, posts[i], i + 1)
+            if data:
+                data_list.append(data)
+
+        # 추출된 데이터 저장
+        save_to_excel(data_list)
+
+        # 완료 메시지와 파일 경로 반환
+        logging.info("개인정보 신청 이력 저장이 완료되었습니다.")
+        return EXCEL_FILE
+
+    except Exception as e:
+        logging.error(f"메인 프로세스 중 오류 발생: {e}")
+        traceback.print_exc()
+        return None
+    finally:
+        driver.quit()
+        logging.info("브라우저가 종료되었습니다.")
