@@ -182,3 +182,59 @@ def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelemen
         except Exception as e:
             logging.error(f"창 전환 중 오류 발생: {e}")
             traceback.print_exc()
+
+
+def save_to_excel(data_list: List[Dict]) -> None:
+    """
+    추출된 데이터를 엑셀 파일에 저장하는 함수
+    """
+    if not data_list:
+        logging.info("추출된 데이터가 없습니다.")
+        return
+
+    try:
+        # 엑셀 파일 열기
+        wb = load_workbook(EXCEL_FILE)
+        if WORKSHEET_NAME not in wb.sheetnames:
+            logging.error(f"워크시트 '{WORKSHEET_NAME}'이(가) 존재하지 않습니다.")
+            return
+        ws = wb[WORKSHEET_NAME]
+
+        # 마지막 행 찾기
+        last_row = ws.max_row
+        while last_row >= 6:
+            if ws.cell(row=last_row, column=2).value is not None:
+                break
+            last_row -= 1
+
+        # 시작 행과 번호 설정
+        start_row = max(6, last_row + 1)
+        if last_row >= 6:
+            last_no = ws.cell(row=last_row, column=2).value
+            next_no = last_no + 1 if isinstance(last_no, int) else 1
+        else:
+            next_no = 1
+
+        # 엑셀 열 매핑 정의
+        column_mapping = {
+            '결재일': 3, '년': 4, '월': 5, '일': 6, '주차': 7,
+            '법인명': 8, '문서번호': 9, '제목': 10, '업무 유형': 11,
+            '추출 위치': 12, '담당 부서': 13, '신청자': 14,
+            '합의 담당자': 15, '링크': 16, '진행 구분': 17
+        }
+
+        # 데이터 쓰기
+        for data in data_list:
+            ws.cell(row=start_row, column=2, value=next_no)
+            next_no += 1
+            for col_name, col_idx in column_mapping.items():
+                ws.cell(row=start_row, column=col_idx, value=data[col_name])
+            start_row += 1
+
+        # 파일 저장
+        wb.save(EXCEL_FILE)
+        logging.info(f"데이터가 성공적으로 '{EXCEL_FILE}' 파일에 저장되었습니다.")
+
+    except Exception as e:
+        logging.error(f"엑셀 저장 중 오류 발생: {e}")
+        traceback.print_exc()
