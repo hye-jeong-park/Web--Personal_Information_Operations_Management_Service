@@ -29,3 +29,29 @@ def initialize_webdriver() -> webdriver.Chrome:
     options.add_argument("--start-maximized")
     driver = webdriver.Chrome(options=options)
     return driver
+
+
+def login(driver: webdriver.Chrome, username: str, password: str) -> bool:
+    """
+    로그인 처리
+    """
+    try:
+        driver.get('https://gw.com2us.com/')
+        username_input = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.ID, 'Username'))
+        )
+        password_input = driver.find_element(By.ID, 'Password')
+
+        username_input.send_keys(username)
+        password_input.send_keys(password)
+        driver.find_element(By.CLASS_NAME, 'btnLogin').click()
+
+        WebDriverWait(driver, 20).until(EC.url_changes('https://gw.com2us.com/'))
+        if 'login' in driver.current_url.lower():
+            logging.error("로그인에 실패하였습니다.")
+            return False
+        return True
+    except Exception as e:
+        logging.error(f"로그인 중 오류 발생: {e}")
+        traceback.print_exc()
+        return False
