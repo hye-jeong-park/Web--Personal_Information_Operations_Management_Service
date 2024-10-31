@@ -55,3 +55,20 @@ def login(driver: webdriver.Chrome, username: str, password: str) -> bool:
         logging.error(f"로그인 중 오류 발생: {e}")
         traceback.print_exc()
         return False
+
+
+def navigate_to_target_page(driver: webdriver.Chrome) -> bool:
+    """
+    개인정보 파일 전송 페이지로 이동
+    """
+    try:
+        driver.get('https://gw.com2us.com/emate_app/00001/bbs/b2307140306.nsf/view?readform&viewname=view01')
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'tr[class*="dhx_skyblue"]'))
+        )
+        logging.info(f"페이지 이동 후 현재 URL: {driver.current_url}")
+        return True
+    except Exception as e:
+        logging.error(f"타겟 페이지로 이동 중 오류 발생: {e}")
+        traceback.print_exc()
+        return False
