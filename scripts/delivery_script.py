@@ -127,3 +127,12 @@ def go_to_page(driver: webdriver.Chrome, page_number: int) -> bool:
         logging.error(f"{page_number} 페이지로 이동 중 오류 발생: {e}")
         traceback.print_exc()
         return False
+
+
+def extract_corporate_name(full_text: str) -> str:
+    """
+    법인명 추출: "게임사업3본부 K사업팀 / 홍길동님" 중 "게임사업3본부"만 추출
+    """
+    if '/' in full_text:
+        return full_text.split('/')[0].strip().split()[0]
+    return full_text.strip().split()[0]
