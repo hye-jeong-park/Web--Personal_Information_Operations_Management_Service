@@ -72,3 +72,19 @@ def navigate_to_target_page(driver: webdriver.Chrome) -> bool:
         logging.error(f"타겟 페이지로 이동 중 오류 발생: {e}")
         traceback.print_exc()
         return False
+
+
+def fetch_posts(driver: webdriver.Chrome) -> List[webdriver.remote.webelement.WebElement]:
+    """
+    현재 페이지의 게시글 목록을 가져옵니다.
+    """
+    try:
+        posts = driver.find_elements(By.CSS_SELECTOR, 'tr[class*="dhx_skyblue"]')
+        total_posts = len(posts)
+        logging.info(f"총 게시글 수: {total_posts}")
+        return posts
+    except Exception as e:
+        logging.error("게시글 목록을 가져오는 중 오류 발생.")
+        logging.error(e)
+        traceback.print_exc()
+        return []
