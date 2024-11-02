@@ -193,3 +193,59 @@ def find_section_text(driver: webdriver.Chrome, section_titles: List[str]) -> Op
     except Exception as e:
         logging.error(f"find_section_text 오류: {e}")
         return None
+
+
+def extract_attachment_info(driver: webdriver.Chrome) -> Tuple[str, str]:
+    """
+    메인 문서 내의 첨부파일 정보를 추출하는 함수
+    """
+    파일형식, 파일용량 = '', ''
+
+    try:
+        attm_read_div = driver.find_element(By.ID, 'attmRead')
+        logging.info("첨부파일 div 찾음: attmRead")
+
+        try:
+            size_text = attm_read_div.find_element(By.XPATH, './/span[@class="attm-size"]').text.strip()
+            size_match = re.match(r'([\d,\.]+)\s*([KMGT]?B)', size_text, re.IGNORECASE)
+            if size_match:
+                size_numeric = size_match.group(1).replace(',', '')
+                size_unit = size_match.group(2).upper()
+                파일용량 = f"{size_numeric} {size_unit}"
+            else:
+                파일용량 = size_text
+            logging.info(f"파일용량 추출: {파일용량}")
+        except Exception as e:
+            logging.warning(f"파일용량 추출 중 오류 발생: {e}")
+
+        try:
+            filename = attm_read_div.find_element(By.XPATH, './/ul[contains(@class, "attm-list")]/li/a/strong').text.strip()
+            if '.zip' in filename.lower():
+                파일형식 = 'Zip'
+            elif '.xlsx' in filename.lower():
+                파일형식 = 'Excel'
+            logging.info(f"파일형식 추출: {파일형식}")
+        except Exception as e:
+            logging.warning(f"파일형식 추출 중 오류 발생: {e}")
+            파일형식 = ''
+    except Exception as e:
+        logging.warning(f"attmRead를 찾을 수 없음: {e}")
+
+    if not 파일형식 and not 파일용량:
+        try:
+            iframe = driver.find_element(By.ID, 'ifa_form')
+            driver.switch_to.frame(iframe)
+            logging.info("iframe으로 전환하여 파일 정보 추출 시도")
+            file_text = find_section_text(driver, ['파밀명 및 용량 (KB)', '파일명 및 용량 (KB)'])
+            if file_text:
+                logging.info(f"iframe 내에서 파일 정보 추출 시작: {file_text}")
+                파일형식, 파일용량 = extract_file_info(file_text)
+                logging.info(f"iframe 내에서 파일 정보 추출 완료: {파일형식}, {파일용량}")
+            else:
+                logging.warning("iframe 내에서 파일 정보 섹션을 찾을 수 없습니다.")
+            driver.switch_to.default_content()
+        except Exception as e:
+            logging.error(f"iframe에서 파일 정보 추출 중 오류 발생: {e}")
+            driver.switch_to.default_content()
+
+    return 파일형식, 파일용량
