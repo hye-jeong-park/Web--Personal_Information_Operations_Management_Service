@@ -432,3 +432,65 @@ def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelemen
         except Exception as e:
             logging.error(f"창 전환 중 오류 발생: {e}")
             traceback.print_exc()
+
+
+def save_to_excel(data_list: List[Dict]) -> None:
+    """
+    추출된 데이터를 엑셀 파일에 저장하는 함수
+    """
+    if not data_list:
+        logging.info("추출된 데이터가 없습니다.")
+        return
+
+    try:
+        wb = load_workbook(EXCEL_FILE)
+        if WORKSHEET_NAME not in wb.sheetnames:
+            logging.error(f"워크시트 '{WORKSHEET_NAME}'이(가) 존재하지 않습니다.")
+            return
+
+        ws = wb[WORKSHEET_NAME]
+        max_row = ws.max_row
+
+        column_mapping = {
+            '등록일': 19,           # S
+            '법인명': 20,           # T
+            '제목': 21,             # U
+            '작성자': 22,           # V
+            '링크': 23,             # W
+            '파일형식': 24,         # X
+            '파일 용량': 25,        # Y
+            '고유식별정보(수)': 26, # Z
+            '개인정보(수)': 27,     # AA
+            '진행 구분': 28         # AB
+        }
+
+        for data in data_list:
+            application_form_link = data.get('application_form_link', '')
+            if not application_form_link:
+                logging.warning("개인정보 추출 신청서 링크가 없습니다. 데이터를 저장하지 않습니다.")
+                continue
+
+            found_row = None
+            for row_idx in range(6, max_row + 1):
+                cell_value = ws.cell(row=row_idx, column=16).value  # Column P (16)
+                if cell_value:
+                    cell_value_str = str(cell_value).strip().replace('&amp;', '&')
+                    application_form_link_str = application_form_link.strip().replace('&amp;', '&')
+                    if cell_value_str == application_form_link_str:
+                        found_row = row_idx
+                        break
+
+            if found_row:
+                for col_name, col_idx in column_mapping.items():
+                    ws.cell(row=found_row, column=col_idx, value=data[col_name])
+                logging.info(f"데이터가 엑셀의 행 {found_row}에 저장되었습니다.")
+            else:
+                logging.warning(f"링크 '{application_form_link}'를 가진 행을 찾을 수 없습니다.")
+
+        wb.save(EXCEL_FILE)
+        logging.info(f"데이터가 성공적으로 '{EXCEL_FILE}' 파일에 저장되었습니다.")
+
+    except Exception as e:
+        logging.error("엑셀 파일 처리 중 오류가 발생했습니다.")
+        logging.error(e)
+        traceback.print_exc()
