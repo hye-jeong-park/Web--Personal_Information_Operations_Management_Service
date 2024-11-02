@@ -494,3 +494,68 @@ def save_to_excel(data_list: List[Dict]) -> None:
         logging.error("엑셀 파일 처리 중 오류가 발생했습니다.")
         logging.error(e)
         traceback.print_exc()
+
+
+def main(username: str, password: str) -> Optional[str]:
+    driver = initialize_webdriver()
+
+    try:
+        if not login(driver, username, password):
+            driver.quit()
+            return None
+
+        if not navigate_to_target_page(driver):
+            driver.quit()
+            return None
+
+        data_list = []
+        total_crawled = 0
+        page_number = 1
+
+        while total_crawled < CRAWL_LIMIT:
+            logging.info(f"{page_number} 페이지 크롤링 시작")
+            posts = fetch_posts(driver)
+            total_posts = len(posts)
+            if total_posts == 0:
+                logging.info(f"{page_number} 페이지에 처리할 게시글이 없습니다.")
+                break
+
+            # 첫 번째 페이지에서는 첫 번째 행은 헤더일 수 있으므로, 인덱스 1부터 시작
+            # 두 번째 페이지부터는 인덱스 0부터 시작
+            if page_number == 1:
+                start_index = 1
+            else:
+                start_index = 0
+
+            for i in range(start_index, total_posts):
+                if total_crawled >= CRAWL_LIMIT:
+                    break
+                posts = fetch_posts(driver)
+                if i >= len(posts):
+                    logging.warning(f"게시글 {i}은 존재하지 않습니다.")
+                    break
+                data = extract_post_data(driver, posts[i], total_crawled + 1)
+                if data:
+                    data_list.append(data)
+                    total_crawled += 1
+
+            if total_crawled >= CRAWL_LIMIT:
+                break
+
+            page_number += 1
+            if not go_to_page(driver, page_number):
+                logging.info("더 이상 페이지가 없습니다.")
+                break
+
+        save_to_excel(data_list)
+        logging.info("개인정보 추출 및 전달이 완료되었습니다.")
+        return EXCEL_FILE
+
+    except Exception as e:
+        logging.error("스크립트 실행 중 예상치 못한 오류가 발생했습니다.")
+        logging.error(e)
+        traceback.print_exc()
+        return None
+    finally:
+        driver.quit()
+        logging.info("브라우저가 종료되었습니다.")
