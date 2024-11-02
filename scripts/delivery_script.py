@@ -170,3 +170,26 @@ def extract_file_info(file_info: str) -> Tuple[str, str]:
         file_size = size_part
 
     return file_type, file_size
+
+
+def find_section_text(driver: webdriver.Chrome, section_titles: List[str]) -> Optional[str]:
+    """
+    특정 섹션의 제목을 기반으로 해당 섹션의 내용을 추출하는 함수
+    """
+    try:
+        tr_elements = driver.find_elements(By.XPATH, '//table//tr')
+        for tr in tr_elements:
+            try:
+                td_elements = tr.find_elements(By.TAG_NAME, 'td')
+                if len(td_elements) >= 2:
+                    header_text = ''.join([span.text.strip() for span in td_elements[0].find_elements(By.TAG_NAME, 'span')])
+
+                    for section_title in section_titles:
+                        if section_title in header_text:
+                            return td_elements[1].text.strip()
+            except Exception:
+                continue
+        return None
+    except Exception as e:
+        logging.error(f"find_section_text 오류: {e}")
+        return None
