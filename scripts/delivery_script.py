@@ -249,3 +249,186 @@ def extract_attachment_info(driver: webdriver.Chrome) -> Tuple[str, str]:
             driver.switch_to.default_content()
 
     return 파일형식, 파일용량
+
+
+def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelement.WebElement, index: int) -> Optional[Dict]:
+    """
+    개별 게시글의 데이터를 추출하는 함수
+    """
+    try:
+        tds = post.find_elements(By.TAG_NAME, 'td')
+
+        # 등록일
+        if len(tds) >= 5:
+            등록일_text = tds[4].get_attribute('title').strip() if tds[4].get_attribute('title') else tds[4].text.strip()
+        else:
+            logging.warning(f"게시글 {index}: 등록일 정보가 부족합니다.")
+            등록일_text = ''
+
+        # 작성자
+        if len(tds) >= 3:
+            작성자_td = tds[2]
+            작성자 = 작성자_td.find_element(By.TAG_NAME, 'span').text.strip() if 작성자_td.find_elements(By.TAG_NAME, 'span') else 작성자_td.text.strip()
+        else:
+            logging.warning(f"게시글 {index}: 작성자 정보가 부족합니다.")
+            작성자 = ''
+
+        # 스크롤 및 클릭
+        driver.execute_script("arguments[0].scrollIntoView();", post)
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable(post))
+        post.click()
+
+        # 새 창으로 전환
+        WebDriverWait(driver, 20).until(EC.number_of_windows_to_be(2))
+        driver.switch_to.window(driver.window_handles[-1])
+        logging.info(f"게시글 {index}: 새 창으로 전환")
+
+        # 상세 페이지 로딩
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'HeaderTable')))
+        logging.info(f"게시글 {index}: 상세 페이지 로딩 완료")
+
+        # 제목, 작성자, 등록일 상세
+        제목 = driver.find_element(By.ID, 'DisSubject').text.strip() if driver.find_elements(By.ID, 'DisSubject') else ''
+        작성자_full = driver.find_element(By.ID, 'DismyName').text.strip() if driver.find_elements(By.ID, 'DismyName') else ''
+        등록일_text_detail = driver.find_element(By.ID, 'DiscDate').text.strip() if driver.find_elements(By.ID, 'DiscDate') else ''
+
+        # 첨부파일 정보
+        파일형식, 파일용량 = extract_attachment_info(driver)
+
+        # iframe 전환
+        법인명, 개인정보_수, 고유식별정보_수, 수신자 = '', 0, 0, ''
+        application_form_link = ''
+        try:
+            iframe = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, 'ifa_form'))
+            )
+            driver.switch_to.frame(iframe)
+            logging.info(f"게시글 {index}: iframe으로 전환")
+
+            recipient_text = find_section_text(driver, ['수신자 (부서, 이름)', "Recipient's Department and Name"])
+            if recipient_text:
+                수신자 = recipient_text.strip()
+                법인명 = extract_corporate_name(recipient_text)
+                logging.info(f"게시글 {index}: 수신자 정보 추출 완료: {법인명}")
+            else:
+                logging.warning(f"게시글 {index}: 수신자 정보를 찾을 수 없습니다.")
+
+            item_text = find_section_text(driver, ['추출된 항목 및 건수', 'Items and Counts Extracted'])
+            if item_text:
+                lines = item_text.strip().split('\n')
+                keywords = ["주민등록번호", "여권번호", "운전면허의 면허번호", "외국인등록번호", "신분증"]
+                found_keywords = False
+                for line in lines:
+                    line = line.strip()
+                    # 전체 건수 추출
+                    count_match = re.search(r'(\d{1,3}(?:,\d{3})*)\s*건', line)
+                    if count_match:
+                        count = int(count_match.group(1).replace(',', ''))
+                        개인정보_수 += count
+                    else:
+                        count = 0  # 건수가 없는 경우 0으로 처리
+                    # 키워드 포함 여부 확인
+                    if any(keyword in line for keyword in keywords):
+                        고유식별정보_수 += count
+                        found_keywords = True
+                if not found_keywords:
+                    logging.info(f"게시글 {index}: 고유식별정보 미포함")
+                else:
+                    logging.info(f"게시글 {index}: 고유식별정보 수 추출 완료: {고유식별정보_수}")
+                logging.info(f"게시글 {index}: 개인정보 수 추출 완료: {개인정보_수}")
+            else:
+                logging.warning(f"게시글 {index}: '추출된 항목 및 건수' 섹션을 찾을 수 없습니다.")
+
+            # 개인정보 추출 신청서 링크 추출
+            tr_elements = driver.find_elements(By.XPATH, '//table//tr')
+            for tr in tr_elements:
+                tds = tr.find_elements(By.TAG_NAME, 'td')
+                if len(tds) >= 2:
+                    header_text = ''.join([span.text.strip() for span in tds[0].find_elements(By.TAG_NAME, 'span')])
+                    if '개인정보 추출 신청서 링크' in header_text or 'URL of the Application Form' in header_text:
+                        try:
+                            link_element = tds[1].find_element(By.TAG_NAME, 'a')
+                            application_form_link = link_element.get_attribute('href')
+                            logging.info(f"게시글 {index}: 개인정보 추출 신청서 링크 추출 완료: {application_form_link}")
+                        except Exception as e:
+                            logging.error(f"게시글 {index}: 개인정보 추출 신청서 링크 추출 중 오류 발생: {e}")
+                            application_form_link = ''
+                        break
+
+            driver.switch_to.default_content()
+        except Exception as e:
+            logging.error(f"게시글 {index}: iframe에서 데이터 추출 중 오류 발생: {e}")
+            driver.switch_to.default_content()
+
+        # 진행 구분 설정
+        진행_구분 = ''
+        try:
+            # 첨부파일 이력조회 버튼 클릭
+            attm_log_button = driver.find_element(By.XPATH, '//a[span[text()="첨부파일 이력조회"]]')
+            attm_log_button.click()
+            logging.info(f"게시글 {index}: 첨부파일 이력조회 버튼 클릭")
+
+            try:
+                # 이력 테이블이 나타날 때까지 대기
+                WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//table[@id="ResultTable"]/tbody/tr'))
+                )
+                logging.info(f"게시글 {index}: 첨부파일 이력 테이블 로딩 완료")
+            except Exception as e:
+                logging.error(f"게시글 {index}: 첨부파일 이력 테이블 로딩 중 오류 발생: {e}")
+                return None
+
+            # 이력 테이블에서 행들을 가져옴
+            rows = driver.find_elements(By.XPATH, '//table[@id="ResultTable"]/tbody/tr')
+            다운로드_이력_존재 = False
+
+            for row in rows:
+                cells = row.find_elements(By.TAG_NAME, 'td')
+                if len(cells) >= 6:
+                    구분 = cells[0].text.strip()
+                    수행자_element = cells[1]
+                    # 수행자 이름 추출
+                    수행자 = 수행자_element.find_element(By.CLASS_NAME, 'pob').text.strip()
+                    if 구분 == '다운로드' and 수행자 in 수신자:
+                        다운로드_이력_존재 = True
+                        logging.info(f"게시글 {index}: 다운로드 이력 발견 - 수행자: {수행자}")
+                        break
+
+            if 다운로드_이력_존재:
+                진행_구분 = '다운 완료'
+            else:
+                진행_구분 = ''
+        except Exception as e:
+            logging.error(f"게시글 {index}: 첨부파일 이력조회 처리 중 오류 발생: {e}")
+
+        # 데이터 구성
+        data = {
+            '등록일': 등록일_text or 등록일_text_detail,
+            '법인명': 법인명,
+            '제목': 제목,
+            '작성자': 작성자_full,
+            '링크': driver.current_url,
+            '파일형식': 파일형식,
+            '파일 용량': 파일용량,
+            '고유식별정보(수)': 고유식별정보_수,
+            '개인정보(수)': 개인정보_수,
+            '진행 구분': 진행_구분,
+            'application_form_link': application_form_link
+        }
+
+        logging.info(f"게시글 {index}: 데이터 추출 완료")
+        return data
+
+    except Exception as e:
+        logging.error(f"게시글 {index}: 데이터 추출 중 오류 발생: {e}")
+        traceback.print_exc()
+        return None
+    finally:
+        # 창 닫기 및 원래 창으로 전환
+        try:
+            driver.close()
+            driver.switch_to.window(driver.window_handles[0])
+            time.sleep(2)
+        except Exception as e:
+            logging.error(f"창 전환 중 오류 발생: {e}")
+            traceback.print_exc()
