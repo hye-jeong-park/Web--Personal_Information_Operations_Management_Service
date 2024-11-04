@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>개인정보 처리 웹 서비스</title>
+</head>
+<body>
+    <h1>개인정보 처리 웹 서비스</h1>
+    <form method="post" action="/">
+        <label for="username">아이디:</label>
+        <input type="text" id="username" name="username" required><br><br>
+        <label for="password">비밀번호:</label>
+        <input type="password" id="password" name="password" required><br><br>
+        <button type="submit" name="action" value="save_history">개인정보 신청 이력 저장</button>
+        <button type="submit" name="action" value="extract_and_transfer">개인정보 추출 및 전달</button>
+    </form>
+    {% if message %}
+        <p>{{ message }}</p>
+        {% if file_path %}
+            <p>파일 저장 위치: {{ file_path }}</p>
+        {% endif %}
+    {% endif %}
+</body>
+</html>
