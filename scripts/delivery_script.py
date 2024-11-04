@@ -1,3 +1,7 @@
+##delivery_script_ver2
+##크롤링 게시글 개수에 대해 사용자에게 입력받는 코드 추가
+
+# start - ver1과 동일 
 import re
 import sys
 import time
@@ -12,8 +16,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from openpyxl import load_workbook
 
-# 크롤링할 최대 게시글 수 설정
-CRAWL_LIMIT = 21
 EXCEL_FILE = r'C:\Users\PHJ\output\개인정보 운영대장.xlsx'  # 엑셀 파일 경로
 WORKSHEET_NAME = '개인정보 추출 및 이용 관리'
 
@@ -494,9 +496,10 @@ def save_to_excel(data_list: List[Dict]) -> None:
         logging.error("엑셀 파일 처리 중 오류가 발생했습니다.")
         logging.error(e)
         traceback.print_exc()
+# end - ver1과 동일 
 
-
-def main(username: str, password: str) -> Optional[str]:
+# start - 변경된 사항
+def main(username: str, password: str, max_posts: Optional[int] = None) -> Optional[str]:
     driver = initialize_webdriver()
 
     try:
@@ -512,7 +515,7 @@ def main(username: str, password: str) -> Optional[str]:
         total_crawled = 0
         page_number = 1
 
-        while total_crawled < CRAWL_LIMIT:
+        while True:
             logging.info(f"{page_number} 페이지 크롤링 시작")
             posts = fetch_posts(driver)
             total_posts = len(posts)
@@ -528,7 +531,7 @@ def main(username: str, password: str) -> Optional[str]:
                 start_index = 0
 
             for i in range(start_index, total_posts):
-                if total_crawled >= CRAWL_LIMIT:
+                if max_posts is not None and total_crawled >= max_posts:
                     break
                 posts = fetch_posts(driver)
                 if i >= len(posts):
@@ -539,7 +542,7 @@ def main(username: str, password: str) -> Optional[str]:
                     data_list.append(data)
                     total_crawled += 1
 
-            if total_crawled >= CRAWL_LIMIT:
+            if max_posts is not None and total_crawled >= max_posts:
                 break
 
             page_number += 1
@@ -559,3 +562,4 @@ def main(username: str, password: str) -> Optional[str]:
     finally:
         driver.quit()
         logging.info("브라우저가 종료되었습니다.")
+# end - 변경된 사항

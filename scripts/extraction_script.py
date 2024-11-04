@@ -1,3 +1,7 @@
+##extraction_script_ver2
+##크롤링 게시글 개수에 대해 사용자에게 입력받는 코드 추가
+
+# start - ver1과 동일 
 import sys
 import time
 import traceback
@@ -238,9 +242,10 @@ def save_to_excel(data_list: List[Dict]) -> None:
     except Exception as e:
         logging.error(f"엑셀 저장 중 오류 발생: {e}")
         traceback.print_exc()
+# end - ver1과 동일 
 
-
-def main(username: str, password: str) -> Optional[str]:
+# start - 변경된 사항
+def main(username: str, password: str, max_posts: Optional[int] = None) -> Optional[str]:
     driver = initialize_webdriver()
 
     try:
@@ -260,14 +265,19 @@ def main(username: str, password: str) -> Optional[str]:
         # 게시글 데이터 추출
         data_list = []
         posts = driver.find_elements(By.XPATH, '//tr[contains(@class, "dhx_skyblue")]')
-        num_posts_to_crawl = min(len(posts), MAX_POSTS)
+
+        # 최대 게시글 수 설정
+        if max_posts is not None:
+            num_posts_to_crawl = min(len(posts), max_posts)
+        else:
+            num_posts_to_crawl = len(posts)
 
         for i in range(num_posts_to_crawl):
             posts = driver.find_elements(By.CSS_SELECTOR, 'tr[class*="dhx_skyblue"]')
             if i >= len(posts):
                 logging.warning(f"게시글 수가 예상보다 적습니다. 현재 인덱스: {i}, 게시글 수: {len(posts)}")
                 break
-                
+
             data = extract_post_data(driver, posts[i], i + 1)
             if data:
                 data_list.append(data)
@@ -286,3 +296,4 @@ def main(username: str, password: str) -> Optional[str]:
     finally:
         driver.quit()
         logging.info("브라우저가 종료되었습니다.")
+# end - 변경된 사항
