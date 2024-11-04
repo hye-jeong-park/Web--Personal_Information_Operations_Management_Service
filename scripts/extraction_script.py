@@ -145,8 +145,18 @@ def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelemen
         문서번호_elements = driver.find_elements(By.XPATH, '//th[contains(text(),"문서번호")]/following-sibling::td[1]')
         문서번호 = 문서번호_elements[0].text.strip() if 문서번호_elements else ''
 
+        # 제목_elements = driver.find_elements(By.CSS_SELECTOR, 'td.approval_text')
+        # 제목 = 제목_elements[0].text.strip() if 제목_elements else ''
         제목_elements = driver.find_elements(By.CSS_SELECTOR, 'td.approval_text')
-        제목 = 제목_elements[0].text.strip().replace(법인명, '').strip() if 제목_elements else ''
+        if 제목_elements:
+            제목_text = 제목_elements[0].text.strip()
+            # 제목이 법인명 + 공백으로 시작하면, 그 부분을 제거
+            if 제목_text.startswith(법인명 + ' '):
+                제목 = 제목_text[len(법인명) + 1:].strip()
+            else:
+                제목 = 제목_text
+        else:
+            제목 = ''
 
         합의담당자_elements = driver.find_elements(By.XPATH, '//th[text()="합의선"]/following::tr[@class="name"][1]/td[@class="td_point"]')
         합의담당자 = 합의담당자_elements[0].text.strip() if 합의담당자_elements else ''
