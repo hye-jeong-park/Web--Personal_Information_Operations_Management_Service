@@ -3,6 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <title>개인정보 처리 웹 서비스</title>
+    <script>
+        function toggleNumberInput() {
+            var crawlOption = document.getElementById('crawl_option').value;
+            var numberInputDiv = document.getElementById('number_input_div');
+            if (crawlOption === 'direct') {
+                numberInputDiv.style.display = 'inline';
+            } else {
+                numberInputDiv.style.display = 'none';
+            }
+        }
+    </script>
 </head>
 <body>
     <h1>개인정보 처리 웹 서비스</h1>
@@ -11,6 +22,19 @@
         <input type="text" id="username" name="username" required><br><br>
         <label for="password">비밀번호:</label>
         <input type="password" id="password" name="password" required><br><br>
+        
+        <label for="crawl_option">크롤링 옵션:</label>
+        <select id="crawl_option" name="crawl_option" onchange="toggleNumberInput()">
+            <option value="all">전체</option>
+            <option value="direct">직접입력</option>
+        </select>
+        
+        <div id="number_input_div" style="display:none;">
+            <label for="max_posts"> 크롤링할 게시글 수:</label>
+            <input type="number" id="max_posts" name="max_posts" min="1">
+        </div>
+        <br><br>
+        
         <button type="submit" name="action" value="save_history">개인정보 신청 이력 저장</button>
         <button type="submit" name="action" value="extract_and_transfer">개인정보 추출 및 전달</button>
     </form>
