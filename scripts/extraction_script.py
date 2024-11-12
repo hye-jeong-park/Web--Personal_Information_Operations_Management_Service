@@ -189,7 +189,6 @@ def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelemen
     finally:
         try:
             window_handles = driver.window_handles
-            logging.info(f"현재 윈도우 핸들: {window_handles}")
             if len(window_handles) > 1:
                 # 현재 창(팝업 창)을 닫고, 메인 창으로 전환
                 driver.close()
