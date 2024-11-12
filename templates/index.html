@@ -3,25 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <title>개인정보 처리 웹 서비스</title>
+    <style>
+        /* 로딩 화면 및 완료 화면 스타일 */
+        #loading-overlay, #completed-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 1.5em;
+            color: #333;
+        }
+        #loading-overlay img, #completed-overlay img {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+        }
+        /* 폼 기본 스타일 */
+        form {
+            max-width: 500px;
+            margin: auto;
+        }
+        label {
+            display: inline-block;
+            width: 150px;
+        }
+        input, select {
+            width: calc(100% - 160px);
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+        }
+    </style>
     <script>
         function toggleNumberInput() {
             var crawlOption = document.getElementById('crawl_option').value;
             var numberInputDiv = document.getElementById('number_input_div');
             if (crawlOption === 'direct') {
-                numberInputDiv.style.display = 'inline';
+                numberInputDiv.style.display = 'block';
             } else {
                 numberInputDiv.style.display = 'none';
             }
         }
+
+        function showLoading() {
+            document.getElementById("loading-overlay").style.display = "flex";
+        }
+
+        function hideLoading() {
+            document.getElementById("loading-overlay").style.display = "none";
+        }
+
+        function showCompleted() {
+            document.getElementById("completed-overlay").style.display = "flex";
+            // 3초 후에 완료 화면 숨기기
+            setTimeout(function() {
+                document.getElementById("completed-overlay").style.display = "none";
+            }, 3000);
+        }
+
+        function submitForm(event, actionValue) {
+            event.preventDefault(); // 폼의 기본 제출 방지
+            showLoading();
+
+            var form = document.getElementById('data-form');
+            var formData = new FormData(form);
+
+            // 클릭된 버튼의 action 값 추가
+            formData.append('action', actionValue);
+
+            fetch('/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                hideLoading();
+                showCompleted();
+                // 서버에서 렌더링된 HTML을 받아서 현재 페이지에 적용
+                document.open();
+                document.write(data);
+                document.close();
+            })
+            .catch(error => {
+                hideLoading();
+                alert('오류가 발생했습니다: ' + error);
+            });
+        }
+
+        window.onload = function() {
+            // 입력 필드 초기화
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('max_posts').value = '';
+        };
     </script>
 </head>
 <body>
     <h1>개인정보 처리 웹 서비스</h1>
-    <form method="post" action="/">
+    <form id="data-form" enctype="multipart/form-data" autocomplete="off">
         <label for="username">아이디:</label>
-        <input type="text" id="username" name="username" required><br><br>
+        <input type="text" id="username" name="username" required autocomplete="off"><br>
+        
         <label for="password">비밀번호:</label>
-        <input type="password" id="password" name="password" required><br><br>
+        <input type="password" id="password" name="password" required autocomplete="off"><br>
         
         <label for="crawl_option">크롤링 옵션:</label>
         <select id="crawl_option" name="crawl_option" onchange="toggleNumberInput()">
@@ -30,15 +124,35 @@
         </select>
         
         <div id="number_input_div" style="display:none;">
-            <label for="max_posts"> 크롤링할 게시글 수:</label>
+            <label for="max_posts">크롤링할 게시글 수:</label>
             <input type="number" id="max_posts" name="max_posts" min="1">
         </div>
-        <br><br>
         
-        <button type="submit" name="action" value="save_history">개인정보 신청 이력 저장</button>
-        <button type="submit" name="action" value="extract_and_transfer">개인정보 추출 및 전달</button>
+        <br>
+
+        <button type="button" onclick="submitForm(event, 'save_history')">개인정보 신청 이력 저장</button>
+        <button type="button" onclick="submitForm(event, 'extract_and_transfer')">개인정보 추출 및 전달</button>
     </form>
+
+    <!-- 로딩 화면 -->
+    <div id="loading-overlay">
+        <img src="/static/loading.gif" alt="로딩 중">
+        <p>로딩 중입니다... 잠시만 기다려 주세요.</p>
+    </div>
+
+    <!-- 완료 화면 -->
+    <div id="completed-overlay">
+        <img src="/static/completed.png" alt="완료">
+        <p>완료되었습니다!</p>
+    </div>
+
     {% if message %}
+        <script>
+            // 서버에서 렌더링된 HTML에 따라 로딩 및 완료 화면 제어
+            hideLoading();
+            showCompleted();
+            alert("{{ message }}");
+        </script>
         <p>{{ message }}</p>
         {% if file_path %}
             <p>파일 저장 위치: {{ file_path }}</p>
