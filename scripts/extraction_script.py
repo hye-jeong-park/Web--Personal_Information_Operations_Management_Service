@@ -1,7 +1,6 @@
 ##extraction_script_ver2
 ##크롤링 게시글 개수에 대해 사용자에게 입력받는 코드 추가
 
-# start - ver1과 동일 
 import sys
 import time
 import traceback
@@ -252,9 +251,7 @@ def save_to_excel(data_list: List[Dict]) -> None:
     except Exception as e:
         logging.error(f"엑셀 저장 중 오류 발생: {e}")
         traceback.print_exc()
-# end - ver1과 동일 
 
-# start - 변경된 사항
 def main(username: str, password: str, max_posts: Optional[int] = None) -> Optional[str]:
     driver = initialize_webdriver()
 
@@ -306,4 +303,3 @@ def main(username: str, password: str, max_posts: Optional[int] = None) -> Optio
     finally:
         driver.quit()
         logging.info("브라우저가 종료되었습니다.")
-# end - 변경된 사항

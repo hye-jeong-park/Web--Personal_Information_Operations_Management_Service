@@ -1,7 +1,6 @@
 ##delivery_script_ver2
 ##크롤링 게시글 개수에 대해 사용자에게 입력받는 코드 추가
 
-# start - ver1과 동일 
 import re
 import sys
 import time
@@ -496,9 +495,7 @@ def save_to_excel(data_list: List[Dict]) -> None:
         logging.error("엑셀 파일 처리 중 오류가 발생했습니다.")
         logging.error(e)
         traceback.print_exc()
-# end - ver1과 동일 
 
-# start - 변경된 사항
 def main(username: str, password: str, max_posts: Optional[int] = None) -> Optional[str]:
     driver = initialize_webdriver()
 
@@ -562,4 +559,3 @@ def main(username: str, password: str, max_posts: Optional[int] = None) -> Optio
     finally:
         driver.quit()
         logging.info("브라우저가 종료되었습니다.")
-# end - 변경된 사항
