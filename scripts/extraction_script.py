@@ -187,10 +187,16 @@ def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelemen
         traceback.print_exc()
         return None
     finally:
-        # 창 정리 및 원래 창으로 복귀
         try:
-            driver.close()
-            driver.switch_to.window(driver.window_handles[0])
+            window_handles = driver.window_handles
+            logging.info(f"현재 윈도우 핸들: {window_handles}")
+            if len(window_handles) > 1:
+                # 현재 창(팝업 창)을 닫고, 메인 창으로 전환
+                driver.close()
+                driver.switch_to.window(window_handles[0])
+            else:
+                # 창이 하나밖에 없을 경우, 전환만 수행
+                driver.switch_to.window(window_handles[0])
             time.sleep(2)
         except Exception as e:
             logging.error(f"창 전환 중 오류 발생: {e}")
