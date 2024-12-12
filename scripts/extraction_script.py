@@ -1,11 +1,9 @@
-##extraction_script_ver2
-##크롤링 게시글 개수에 대해 사용자에게 입력받는 코드 추가
-
 import sys
 import time
 import traceback
 import logging
 from typing import Optional, List, Dict
+import getpass  # 비밀번호 입력을 위한 모듈 추가
 
 import pandas as pd
 from selenium import webdriver
@@ -15,7 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from openpyxl import load_workbook
 
 # 크롤링할 최대 게시글 수 설정
-MAX_POSTS = 20
+MAX_POSTS = 50
 EXCEL_FILE = r'C:\Users\PHJ\output\개인정보 운영대장.xlsx'  # 엑셀 파일 경로
 WORKSHEET_NAME = '개인정보 추출 및 이용 관리'
 
@@ -144,8 +142,6 @@ def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelemen
         문서번호_elements = driver.find_elements(By.XPATH, '//th[contains(text(),"문서번호")]/following-sibling::td[1]')
         문서번호 = 문서번호_elements[0].text.strip() if 문서번호_elements else ''
 
-        # 제목_elements = driver.find_elements(By.CSS_SELECTOR, 'td.approval_text')
-        # 제목 = 제목_elements[0].text.strip() if 제목_elements else ''
         제목_elements = driver.find_elements(By.CSS_SELECTOR, 'td.approval_text')
         if 제목_elements:
             제목_text = 제목_elements[0].text.strip()
@@ -160,6 +156,65 @@ def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelemen
         합의담당자_elements = driver.find_elements(By.XPATH, '//th[text()="합의선"]/following::tr[@class="name"][1]/td[@class="td_point"]')
         합의담당자 = 합의담당자_elements[0].text.strip() if 합의담당자_elements else ''
 
+        # 업무유형 추출
+        업무유형 = ''
+        추출위치 = 'DB'  # 추출위치는 'DB'로 설정
+        담당부서 = ''
+        try:
+            # iframe으로 전환
+            iframe = driver.find_element(By.ID, 'ifa_form')
+            driver.switch_to.frame(iframe)
+            logging.info("iframe으로 전환하여 업무유형 및 담당부서 추출 시작")
+
+            # '구분'이라는 텍스트를 포함하는 <th>를 찾음
+            gu_bun_th = driver.find_element(By.XPATH, '//th[span[contains(text(), "구분")]]')
+            # '구분' <th>의 부모 <tr>을 찾음
+            gu_bun_tr = gu_bun_th.find_element(By.XPATH, './ancestor::tr')
+            # '구분' <tr>과 그 다음 모든 형제 <tr>들에서 체크박스와 라벨을 추출
+            checkbox_trs = [gu_bun_tr] + gu_bun_tr.find_elements(By.XPATH, './following-sibling::tr')
+
+            for tr in checkbox_trs:
+                # 해당 <tr> 안의 모든 체크박스들을 찾음
+                checkboxes = tr.find_elements(By.XPATH, './/input[@type="checkbox"]')
+                for checkbox in checkboxes:
+                    # 체크박스가 선택되었는지 확인
+                    is_checked = checkbox.is_selected()
+                    # 체크박스 바로 다음의 형제 노드에서 라벨(span)을 찾음
+                    label = checkbox.find_element(By.XPATH, './following-sibling::span[1]')
+                    label_text = label.text.strip()
+                    logging.info(f"라벨: {label_text}, 선택됨: {is_checked}")
+                    if is_checked:
+                        if label_text == '프로모션 관리(사전등록, 각 종 이벤트)':
+                            업무유형 = '사전예약/이벤트'
+                            break
+                        elif label_text == '미접속 사용자 대상 이벤트':
+                            업무유형 = '홍보/광고'
+                            break
+                        elif label_text == '통신비밀 보호업무 요청':
+                            업무유형 = '통비'
+                            break
+                        elif label_text == '기타':
+                            업무유형 = '기타'
+                            break
+                if 업무유형:
+                    break
+
+            logging.info(f"업무유형 추출 완료: {업무유형}")
+
+            # 담당부서 추출
+            department_td = driver.find_element(By.XPATH, '//th[span[text()="부서"]]/following-sibling::td')
+            담당부서_full = department_td.text.strip()
+            담당부서 = 담당부서_full.split()[-1] if 담당부서_full else ''
+            logging.info(f"담당부서 추출 완료: {담당부서}")
+
+            driver.switch_to.default_content()
+        except Exception as e:
+            logging.error(f"업무유형 및 담당부서 추출 중 오류 발생: {e}")
+            업무유형 = ''
+            담당부서 = ''
+            driver.switch_to.default_content()
+
+
         # 추출 데이터 구성
         data = {
             '결재일': 결재일_text,
@@ -170,9 +225,9 @@ def extract_post_data(driver: webdriver.Chrome, post: webdriver.remote.webelemen
             '법인명': 법인명,
             '문서번호': 문서번호,
             '제목': 제목,
-            '업무 유형': '',
-            '추출 위치': '',
-            '담당 부서': '',
+            '업무 유형': 업무유형,
+            '추출 위치': 추출위치,
+            '담당 부서': 담당부서,
             '신청자': 신청자,
             '합의 담당자': 합의담당자,
             '링크': driver.current_url,
@@ -257,6 +312,7 @@ def save_to_excel(data_list: List[Dict]) -> None:
         logging.error(f"엑셀 저장 중 오류 발생: {e}")
         traceback.print_exc()
 
+
 def main(username: str, password: str, max_posts: Optional[int] = None) -> Optional[str]:
     driver = initialize_webdriver()
 
@@ -276,7 +332,7 @@ def main(username: str, password: str, max_posts: Optional[int] = None) -> Optio
 
         # 게시글 데이터 추출
         data_list = []
-        posts = driver.find_elements(By.XPATH, '//tr[contains(@class, "dhx_skyblue")]')
+        posts = driver.find_elements(By.CSS_SELECTOR, 'tr[class*="dhx_skyblue"]')
 
         # 최대 게시글 수 설정
         if max_posts is not None:
@@ -285,7 +341,6 @@ def main(username: str, password: str, max_posts: Optional[int] = None) -> Optio
             num_posts_to_crawl = len(posts)
 
         for i in range(num_posts_to_crawl):
-            posts = driver.find_elements(By.CSS_SELECTOR, 'tr[class*="dhx_skyblue"]')
             if i >= len(posts):
                 logging.warning(f"게시글 수가 예상보다 적습니다. 현재 인덱스: {i}, 게시글 수: {len(posts)}")
                 break
