@@ -11,7 +11,7 @@ UPLOAD_FOLDER = './uploaded_files'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def run_extraction_script(username, password, max_posts, excel_path):
-    from scripts.extraction_script import main as first_main
+    from scripts.extraction_script_ver3_BeforeLogicChange import main as first_main
     try:
         excel_file = first_main(username, password, max_posts, excel_path)
         message = '개인정보 신청 이력 저장이 완료되었습니다.'
@@ -21,7 +21,7 @@ def run_extraction_script(username, password, max_posts, excel_path):
         return message, None
 
 def run_delivery_script(username, password, max_posts, excel_path):
-    from scripts.delivery_script import main as second_main
+    from scripts.delivery_script_ver3_BeforeLogicChange import main as second_main
     try:
         excel_file = second_main(username, password, max_posts, excel_path)
         message = '개인정보 추출 및 전달이 완료되었습니다.'
